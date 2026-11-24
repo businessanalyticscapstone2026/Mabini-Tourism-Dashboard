@@ -386,15 +386,7 @@ export interface LiveTouristRow {
   duplicateCount?: number;
 }
 
-async function fetchTourists(): Promise<LiveTouristRow[]> {
-  const { data: rows, error } = await supabase
-    .from("tourists")
-    .select(
-      "id, full_name, email, contact_number, nationality, certification_level, status, renewal_date, date_accredited, created_at, sex, age, emergency_contact_name, emergency_contact_number, dive_pass_type, type_of_dive, pcssd_accreditation_no, pcssd_url, permit_to_operate_no, permit_to_operate_url, affiliated_operator, pro_verified, data_privacy_consent"
-    )
-    .order("created_at", { ascending: false })
-    .limit(500);
-  if (error) throw error;
+function mapTouristRows(rows: any[]): LiveTouristRow[] {
   // Status overlay: the stored column carries operator intent
   // (Active/Suspended per 031); expiry is derived — a lapsed renewal_date
   // reads Expired even when the stored value is still Active.
@@ -494,6 +486,42 @@ async function fetchTourists(): Promise<LiveTouristRow[]> {
       isDuplicate,
       duplicateCount: count,
     };
+  });
+}
+
+async function fetchTourists(): Promise<LiveTouristRow[]> {
+  const { data: rows, error } = await supabase
+    .from("tourists")
+    .select(
+      "id, full_name, email, contact_number, nationality, certification_level, status, renewal_date, date_accredited, created_at, sex, age, emergency_contact_name, emergency_contact_number, dive_pass_type, type_of_dive, pcssd_accreditation_no, pcssd_url, permit_to_operate_no, permit_to_operate_url, affiliated_operator, pro_verified, data_privacy_consent"
+    )
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return mapTouristRows(rows || []);
+}
+
+async function fetchProTourists(): Promise<LiveTouristRow[]> {
+  const { data: rows, error } = await supabase
+    .from("tourists")
+    .select(
+      "id, full_name, email, contact_number, nationality, certification_level, status, renewal_date, date_accredited, created_at, sex, age, emergency_contact_name, emergency_contact_number, dive_pass_type, type_of_dive, pcssd_accreditation_no, pcssd_url, permit_to_operate_no, permit_to_operate_url, affiliated_operator, pro_verified, data_privacy_consent"
+    )
+    .or(
+      "certification_level.ilike.%master%,certification_level.ilike.%instructor%,pcssd_accreditation_no.not.is.null,permit_to_operate_no.not.is.null,pro_verified.eq.true"
+    )
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return mapTouristRows(rows || []);
+}
+
+export function useProTouristsLive() {
+  return useQuery({
+    queryKey: ["live", "tourists_pros"],
+    queryFn: fetchProTourists,
+    enabled: isSupabaseConfigured,
+    staleTime: 30_000,
+    retry: 1,
   });
 }
 

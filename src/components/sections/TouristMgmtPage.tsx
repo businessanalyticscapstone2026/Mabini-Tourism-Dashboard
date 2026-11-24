@@ -97,6 +97,7 @@ import {
   useLiveMode,
   useTouristsLive,
   useTouristsCountLive,
+  useProTouristsLive,
   useInvalidateLive,
   useLiveList,
   setTouristStatus,
@@ -125,6 +126,7 @@ export function TouristMgmtPage({ session }: { session?: StaffSession | null }) 
   const isLive = useLiveMode();
   const liveTourists = useTouristsLive();
   const liveTouristsCount = useTouristsCountLive();
+  const livePros = useProTouristsLive();
   const invalidateTourists = useInvalidateLive();
   const isLiveData = isLive && !!liveTourists.data;
   const touristsSource = useLiveList(isLive, liveTourists, mockTourists);
@@ -219,7 +221,10 @@ export function TouristMgmtPage({ session }: { session?: StaffSession | null }) 
 
   // Unified list of Dive Instructors & Dive Masters matching checklist
   const proTourists = useMemo(() => {
-    return visibleTourists.filter((t) => {
+    const liveList = (livePros.data ?? []).filter(
+      (t) => !session?.userId || (t as any)._dbId !== session.userId,
+    );
+    const mockList = mockTourists.filter((t) => {
       const lvl = String(t.level || (t as any).diver_type || "").toLowerCase();
       const isDiveMasterOrInstructor =
         lvl.includes("master") || lvl.includes("instructor");
@@ -228,12 +233,33 @@ export function TouristMgmtPage({ session }: { session?: StaffSession | null }) 
           (t as any).pcssd_certificate_url ||
           (t as any).pto_number ||
           (t as any).pto_url ||
+          (t as any).pcssd_accreditation_no ||
+          (t as any).permit_to_operate_no ||
           (t as any).license_number ||
           (t as any).credentials_url,
       );
       return isDiveMasterOrInstructor || hasGuidingAccreditations;
     });
-  }, [visibleTourists]);
+
+    const seen = new Set<string>();
+    const combined: Array<LiveTouristRow | MockTourist> = [];
+
+    for (const p of liveList) {
+      const key = (p.name || "").trim().toLowerCase();
+      if (key) seen.add(key);
+      combined.push(p);
+    }
+
+    for (const m of mockList) {
+      const key = (m.name || "").trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push(m);
+      }
+    }
+
+    return combined;
+  }, [livePros.data, mockTourists, session?.userId]);
 
   // Filtered pros list
   const filteredPros = useMemo(() => {
