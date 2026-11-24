@@ -96,6 +96,7 @@ import { displayNationality } from "@/lib/metrics";
 import {
   useLiveMode,
   useTouristsLive,
+  useTouristsCountLive,
   useInvalidateLive,
   useLiveList,
   setTouristStatus,
@@ -123,6 +124,7 @@ export function TouristMgmtPage({ session }: { session?: StaffSession | null }) 
   // auth.users rows needs a server function — impossible client-side).
   const isLive = useLiveMode();
   const liveTourists = useTouristsLive();
+  const liveTouristsCount = useTouristsCountLive();
   const invalidateTourists = useInvalidateLive();
   const isLiveData = isLive && !!liveTourists.data;
   const touristsSource = useLiveList(isLive, liveTourists, mockTourists);
@@ -276,7 +278,10 @@ export function TouristMgmtPage({ session }: { session?: StaffSession | null }) 
   } = usePagination(filteredPros, 10);
 
   // High-level statistics
-  const totalDivers = visibleTourists.length;
+  const totalDivers =
+    isLive && typeof liveTouristsCount.data === "number"
+      ? liveTouristsCount.data
+      : visibleTourists.length;
   const proCount = proTourists.length;
   const verifiedProCount = proTourists.filter((t) => Boolean(t.pro_verified)).length;
   const pendingProCount = proCount - verifiedProCount;
@@ -1405,7 +1410,11 @@ export function TouristMgmtPage({ session }: { session?: StaffSession | null }) 
           <StatCard
             icon={Users}
             label="Total Divers Registered"
-            value={touristsSource.isLoading ? "—" : String(totalDivers)}
+            value={
+              touristsSource.isLoading || (isLive && liveTouristsCount.isLoading)
+                ? "—"
+                : totalDivers.toLocaleString()
+            }
             delta="+14 this month"
             up={true}
           />

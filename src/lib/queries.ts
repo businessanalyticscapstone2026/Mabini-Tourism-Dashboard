@@ -507,6 +507,24 @@ export function useTouristsLive() {
   });
 }
 
+async function fetchTouristsCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from("tourists")
+    .select("*", { count: "exact", head: true });
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export function useTouristsCountLive() {
+  return useQuery({
+    queryKey: ["live", "tourists_count"],
+    queryFn: fetchTouristsCount,
+    enabled: isSupabaseConfigured,
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
 /** Suspend or reactivate a tourist. Requires 031 (status + staff UPDATE). */
 export async function setTouristStatus(
   dbId: string,
